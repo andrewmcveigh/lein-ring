@@ -8,8 +8,8 @@
   (:import [java.util.jar Manifest
                           JarEntry
                           JarOutputStream]
-           [java.io BufferedOutputStream 
-                    FileOutputStream 
+           [java.io BufferedOutputStream
+                    FileOutputStream
                     ByteArrayInputStream]))
 
 (defn default-war-name [project]
@@ -51,7 +51,7 @@
                         (string/split #"\.")
                         (butlast)
                         (vec)
-                        (conj "servlet"))]
+                        (conj "servlet" (name handler-sym)))]
     (string/join "." ns-parts)))
 
 (defn servlet-class [project]
@@ -122,15 +122,18 @@
     handler-sym))
 
 (defn compile-servlet [project]
-  (let [handler-sym (get-in project [:ring :handler])
-        handler-ns  (symbol (namespace handler-sym))
-        servlet-ns  (symbol (servlet-ns project))]
-    (compile-form project servlet-ns
-      `(do (ns ~servlet-ns
-             (:require ring.util.servlet ~handler-ns)
-             (:gen-class :extends javax.servlet.http.HttpServlet))
-           (ring.util.servlet/defservice
-             ~(generate-handler project handler-sym))))))
+  (let [handler-sym (get-in project [:ring :handler])]
+    (if (coll? handler-sym)
+      (doseq [handler handler-sym]
+        (compile-servlet (assoc-in project [:ring :handler] handler)))
+      (let [handler-ns  (symbol (namespace handler-sym))
+            servlet-ns  (symbol (servlet-ns project))]
+        (compile-form project servlet-ns
+          `(do (ns ~servlet-ns
+                 (:require ring.util.servlet ~handler-ns)
+                 (:gen-class :extends javax.servlet.http.HttpServlet))
+               (ring.util.servlet/defservice
+                 ~(generate-handler project handler-sym))))))))
 
 (defn compile-listener [project]
   (let [init-sym    (get-in project [:ring :init])
