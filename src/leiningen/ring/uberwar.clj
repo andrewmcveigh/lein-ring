@@ -32,7 +32,9 @@
 (defn write-uberwar [project war-path]
   (with-open [war-stream (war/create-war project war-path)]
     (doto war-stream
-      (war/str-entry "WEB-INF/web.xml" (war/make-web-xml project))
+      (when-not (.exists (str (war/war-resources-path project) "/WEB-INF/web.xml"))
+        (war/str-entry "WEB-INF/web.xml" (war/make-web-xml project))))
+    (doto war-stream
       (war/dir-entry project "WEB-INF/classes/" (:compile-path project)))
     (doseq [path (distinct (concat [(:source-path project)] (:source-paths project)
                                    [(:resources-path project)] (:resource-paths project)))

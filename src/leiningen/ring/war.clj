@@ -188,8 +188,10 @@
 
 (defn write-war [project war-path]
   (with-open [war-stream (create-war project war-path)]
+    (when-not (.exists (str (war-resources-path project) "/WEB-INF/web.xml"))
+      (doto war-stream
+        (str-entry "WEB-INF/web.xml" (make-web-xml project))))
     (doto war-stream
-      (str-entry "WEB-INF/web.xml" (make-web-xml project))
       (dir-entry project "WEB-INF/classes/" (:compile-path project)))
     (doseq [path (distinct (concat [(:source-path project)] (:source-paths project)
                                    [(:resources-path project)] (:resource-paths project)))
