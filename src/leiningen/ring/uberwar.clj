@@ -31,11 +31,9 @@
 
 (defn write-uberwar [project war-path]
   (with-open [war-stream (war/create-war project war-path)]
-    (doto war-stream
-      (when-not (.exists (io/as-file
-                           (str (war/war-resources-path project)
-                                "/WEB-INF/web.xml")))
-        (war/str-entry "WEB-INF/web.xml" (war/make-web-xml project))))
+    (if-not (war/web-xml-in-resources? project)
+      (war/str-entry war-stream "WEB-INF/web.xml" (war/make-web-xml project))
+      (println "Using included WEB-INF/web.xml"))
     (doto war-stream
       (war/dir-entry project "WEB-INF/classes/" (:compile-path project)))
     (doseq [path (distinct (concat [(:source-path project)] (:source-paths project)
@@ -58,7 +56,7 @@
   ([project war-name]
      (ensure-handler-set! project)
      (let [project (-> project
-                       unmerge-profiles
+                       ;unmerge-profiles
                        war/add-servlet-dep)
            result  (compile/compile project)]
        (when-not (and (number? result) (pos? result))

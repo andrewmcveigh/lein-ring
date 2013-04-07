@@ -186,12 +186,15 @@
 (defn war-resources-path [project]
   (:war-resources-path project "war-resources"))
 
+(defn web-xml-in-resources? [project]
+  (.exists (io/as-file
+             (str (war-resources-path project) "/WEB-INF/web.xml"))))
+
 (defn write-war [project war-path]
   (with-open [war-stream (create-war project war-path)]
-    (when-not (.exists (io/as-file
-                         (str (war-resources-path project) "/WEB-INF/web.xml")))
-      (doto war-stream
-        (str-entry "WEB-INF/web.xml" (make-web-xml project))))
+    (if-not (web-xml-in-resources? project)
+      (str-entry war-stream "WEB-INF/web.xml" (make-web-xml project))
+      (println "Using included WEB-INF/web.xml"))
     (doto war-stream
       (dir-entry project "WEB-INF/classes/" (:compile-path project)))
     (doseq [path (distinct (concat [(:source-path project)] (:source-paths project)
