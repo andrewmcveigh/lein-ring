@@ -95,10 +95,12 @@
   (or (get-in project [:ring :url-pattern])
       "/*"))
 
+(defn war-resources-path [project]
+  (:war-resources-path project "war-resources"))
+
 (defn make-web-xml [project]
   (let [ring-options (:ring project)]
-    (if (and (contains? ring-options :web-xml)
-             (not (map? (:web-xml ring-options))))
+    (if (contains? ring-options :web-xml)
       (slurp (:web-xml ring-options))
       (indent-str
         (sexp-as-element
@@ -106,7 +108,14 @@
            (if (has-listener? project)
              [:listener
               [:listener-class (listener-class project)]])
-           (when-let [mappings (-> ring-options :web-xml :default-mappings)]
+           (when-let [mappings (remove #(or (.startsWith % "/WEB-INF")
+                                            (.startsWith % "/META-INF")
+                                            (.startsWith % "/.DS_Store"))
+                                       (map #(str \/ (.getName %)
+                                                  (when (.isDirectory %) "/*"))
+                                            (.listFiles
+                                              (io/as-file
+                                                (war-resources-path project)))))]
              (map (fn [mapping] [:servlet-mapping
                                  [:servlet-name "default"]
                                  [:url-pattern mapping]]) mappings))
@@ -187,9 +196,6 @@
   (doseq [file (file-seq (io/file dir-path))]
     (let [war-path (in-war-path war-root dir-path file)]
       (file-entry war project war-path file))))
-
-(defn war-resources-path [project]
-  (:war-resources-path project "war-resources"))
 
 (defn web-xml-in-resources? [project]
   (.exists (io/as-file
