@@ -97,7 +97,8 @@
 
 (defn make-web-xml [project]
   (let [ring-options (:ring project)]
-    (if (contains? ring-options :web-xml)
+    (if (and (contains? ring-options :web-xml)
+             (not (map? (:web-xml ring-options))))
       (slurp (:web-xml ring-options))
       (indent-str
         (sexp-as-element
@@ -105,6 +106,10 @@
            (if (has-listener? project)
              [:listener
               [:listener-class (listener-class project)]])
+           (when-let [mappings (-> ring-options :web-xml :default-mappings)]
+             (map (fn [mapping] [:servlet-mapping
+                                 [:servlet-name "default"]
+                                 [:url-pattern mapping]]) mappings))
            [:servlet
             [:servlet-name  (servlet-name project)]
             [:servlet-class (servlet-class project)]]
