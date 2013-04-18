@@ -108,14 +108,32 @@
            (if (has-listener? project)
              [:listener
               [:listener-class (listener-class project)]])
-           (when-let [mappings (remove #(or (.startsWith % "/WEB-INF")
-                                            (.startsWith % "/META-INF")
-                                            (.startsWith % "/.DS_Store"))
-                                       (map #(str \/ (.getName %)
-                                                  (when (.isDirectory %) "/*"))
-                                            (.listFiles
-                                              (io/as-file
-                                                (war-resources-path project)))))]
+           (when-let [mappings (concat
+                                 (remove #(or (.startsWith % "/WEB-INF")
+                                              (.startsWith % "/META-INF")
+                                              (.startsWith % "/.DS_Store"))
+                                         (map #(str \/ (.getName %)
+                                                    (when (.isDirectory %) "/*"))
+                                              (.listFiles
+                                                (io/as-file
+                                                  (war-resources-path project)))))
+                                 (remove nil?
+                                         (for [x (seq (.getURLs (java.lang.ClassLoader/getSystemClassLoader)))
+                                               :let [file (io/as-file x)
+                                                     resource (org.eclipse.jetty.util.resource.Resource/newResource file)
+                                                     filename (.getName file)]
+                                               :when (.endsWith filename ".jar")]
+                                           (let [meta-inf-resource (org.eclipse.jetty.util.resource.Resource/newResource
+                                                                     (str "jar:file:"
+                                                                          (.getCanonicalPath file)
+                                                                          "!/META-INF/resources"))]
+                                             (prn meta-inf-resource)
+                                             (when (.exists meta-inf-resource)
+                                               (map #(let [dir? (.isDirectory
+                                                                  (org.eclipse.jetty.util.resource.Resource/newResource
+                                                                    (str meta-inf-resource %)))]
+                                                       (str \/ % (when dir? \*)))
+                                                    (.list meta-inf-resource)))))))]
              (map (fn [mapping] [:servlet-mapping
                                  [:servlet-name "default"]
                                  [:url-pattern mapping]]) mappings))
