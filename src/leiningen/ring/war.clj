@@ -134,7 +134,7 @@
       (slurp (:web-xml ring-options))
       (indent-str
         (sexp-as-element
-          [:web-app
+          [:web-app {:version "3.0"}
            (if (has-listener? project)
              [:listener
               [:listener-class (listener-class project)]])
