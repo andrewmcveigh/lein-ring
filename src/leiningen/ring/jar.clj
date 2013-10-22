@@ -22,8 +22,20 @@
       `(do (ns ~main-ns
              (:require ring.server.leiningen)
              (:gen-class))
-           (defn ~'-main []
-             (ring.server.leiningen/serve '~options))))))
+           (defn ~'-main
+             ([& ~'args]
+              {:pre [(or (empty? ~'args) (even? (count ~'args)))]}
+              (let [args-parser# {:port #(Integer. %)}
+                    ~'args (into {}
+                                 (map (fn [[k# v#]]
+                                        {:pre [(.startsWith k# "--")]}
+                                        (let [k# (keyword (str/replace k# "--" ""))]
+                                          [k# ((args-parser# k# identity) v#)]))
+                                      (partition 2 ~'args)))
+                    options# (update-in '~options [:ring] merge ~'args)]
+                (prn options#)
+                (ring.server.leiningen/serve options#)))
+             ([] (~'-main nil)))))))
 
 (defn add-main-class [project]
   (update-project project assoc :main (symbol (main-namespace project))))
